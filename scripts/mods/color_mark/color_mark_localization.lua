@@ -7,8 +7,8 @@ return {
 		["zh-cn"] = "彩色标记",
 	},
 	mod_description = {
-		en = "Mark special players with chat commands and display their names in custom colors. Works alongside AnonPlayers.",
-		["zh-cn"] = "用聊天命令标记特殊玩家，让他们的名字以指定颜色显示。与 AnonPlayers 兼容。",
+		en = "Mark party members with chat commands and display their names in custom colors. Works alongside AnonPlayers.",
+		["zh-cn"] = "用聊天命令标记队伍成员，让他们的名字以指定颜色显示。与 AnonPlayers 兼容。",
 	},
 
 	-- 设置项
@@ -28,35 +28,23 @@ return {
 		en = "Real Name + Color",
 		["zh-cn"] = "真名 + 颜色",
 	},
-	display_mode_label_color_setting_text = {
-		en = "Label + Color",
-		["zh-cn"] = "标签 + 颜色",
-	},
-	players_list_show_real = {
-		en = "Show Real Names in /players",
-		["zh-cn"] = "/players 列表显示真名",
-	},
-	players_list_show_real_description = {
-		en = "Display real account names in the /players list instead of anonymized names. Off by default to respect AnonPlayers.",
-		["zh-cn"] = "/players 列表显示真实账号名而非匿名名。默认关闭以尊重 AnonPlayers 的隐藏设置。",
-	},
 
 	-- 命令反馈
 	no_players = {
-		en = "No other players in the current room.",
-		["zh-cn"] = "当前房间没有其他玩家。",
+		en = "No other players in the current party.",
+		["zh-cn"] = "当前队伍没有其他玩家。",
 	},
 	mark_usage = {
-		en = "Usage: /mark <number> <color>  (see /players for numbers; colors: red/orange/yellow/green/cyan/blue/purple/pink/white/gray or hex like ff8800)",
-		["zh-cn"] = "用法：/mark <编号> <颜色>（用 /players 查看编号；颜色：红/橙/黄/绿/青/蓝/紫/粉/白/灰 或 hex 如 ff8800）",
+		en = "Usage: /mark <number> <color>  (run /squad to list party members; colors: red/orange/yellow/green/cyan/blue/purple/pink/white/gray or hex like ff8800)",
+		["zh-cn"] = "用法：/mark <编号> <颜色>（先用 /squad 查看队伍编号；颜色：红/橙/黄/绿/青/蓝/紫/粉/白/灰 或 hex 如 ff8800）",
 	},
 	invalid_color = {
 		en = "Invalid color. Use a preset (red/orange/yellow/green/cyan/blue/purple/pink/white/gray) or hex (e.g. ff8800).",
 		["zh-cn"] = "无效颜色。使用预设（红/橙/黄/绿/青/蓝/紫/粉/白/灰）或 hex（如 ff8800）。",
 	},
 	invalid_index = {
-		en = "Invalid number. Run /players to see the current list.",
-		["zh-cn"] = "无效编号。运行 /players 查看当前列表。",
+		en = "Invalid number. Run /squad to refresh the party list first.",
+		["zh-cn"] = "无效编号。先运行 /squad 刷新队伍列表。",
 	},
 	marked = {
 		en = "marked. Use /unmark <number> to remove.",
@@ -67,19 +55,27 @@ return {
 		["zh-cn"] = "标记已取消。",
 	},
 	unmark_usage = {
-		en = "Usage: /unmark <number>  (see /players for numbers)",
-		["zh-cn"] = "用法：/unmark <编号>（用 /players 查看编号）",
+		en = "Usage: /unmark <number>  (run /squad to list party members)",
+		["zh-cn"] = "用法：/unmark <编号>（先用 /squad 查看队伍编号）",
 	},
 	no_marks = {
-		en = "No players marked yet. Use /mark <number> <color>.",
-		["zh-cn"] = "还没有标记任何玩家。使用 /mark <编号> <颜色>。",
+		en = "No players marked yet. Run /squad, then /mark <number> <color>.",
+		["zh-cn"] = "还没有标记任何玩家。先 /squad，再 /mark <编号> <颜色>。",
 	},
 	marks_header = {
 		en = "Marked players:",
 		["zh-cn"] = "已标记玩家：",
 	},
 	marks_usage_hint = {
-		en = "Run /players to refresh the room list.",
-		["zh-cn"] = "运行 /players 刷新房间列表。",
+		en = "Run /squad to refresh the party list.",
+		["zh-cn"] = "运行 /squad 刷新队伍列表。",
+	},
+	err_no_social = {
+		en = "Social service unavailable.",
+		["zh-cn"] = "社交服务不可用。",
+	},
+	err_squad_failed = {
+		en = "Failed to fetch party members.",
+		["zh-cn"] = "获取队伍成员失败。",
 	},
 }

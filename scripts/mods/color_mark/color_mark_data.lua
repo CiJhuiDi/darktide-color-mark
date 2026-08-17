@@ -19,14 +19,7 @@ mod_data.options = {
 			options = {
 				{ text = "display_mode_anon_color_setting_text", value = "anon_color" },
 				{ text = "display_mode_real_color_setting_text", value = "real_color" },
-				{ text = "display_mode_label_color_setting_text", value = "label_color" },
 			},
-		},
-		-- /players 列表是否显示真实账号名（默认显示匿名名，尊重 AnonPlayers）
-		{
-			setting_id = "players_list_show_real",
-			type = "checkbox",
-			default_value = false,
 		},
 	},
 }
