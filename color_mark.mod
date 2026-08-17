@@ -10,4 +10,5 @@ return {
 	end,
 	packages = {},
 	version = "1.0.0",
+	author = "CiJhuiDi",
 }

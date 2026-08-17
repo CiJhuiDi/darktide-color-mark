@@ -1,6 +1,7 @@
 -- chunkname: @scripts/mods/color_mark/color_mark.lua
 --[[
 	彩色标记 (ColorMark) v1.0.0
+	Author: CiJhuiDi
 	用聊天命令标记队伍成员，被标记玩家的名字以指定颜色显示（富文本 {#color}）。
 	与 AnonPlayers 共存：未标记玩家完全走 AnonPlayers 匿名逻辑，标记玩家被本 mod 截断上色。
 
