@@ -29,6 +29,24 @@ return {
 		["zh-cn"] = "真名 + 颜色",
 	},
 
+	-- 命令 description（DMF 候选列表 / tab_complete 补全时显示）
+	command_squad_description = {
+		en = "List party members with numbers. Numbers are used by /mark.",
+		["zh-cn"] = "列出队伍成员（带编号）。编号用于 /mark 标记。",
+	},
+	command_mark_description = {
+		en = "Mark a party member: /mark <number> <color>. Number from /squad. Colors: red/orange/yellow/green/cyan/blue/purple/pink/white/gray or hex (e.g. ff8800).",
+		["zh-cn"] = "标记队伍成员：/mark <编号> <颜色>。编号来自 /squad。颜色：红/橙/黄/绿/青/蓝/紫/粉/白/灰 或 hex（如 ff8800）。",
+	},
+	command_unmark_description = {
+		en = "Remove a mark: /unmark <number>. Number from /marks list.",
+		["zh-cn"] = "取消标记：/unmark <编号>。编号来自 /marks 列表。",
+	},
+	command_marks_description = {
+		en = "List marked players. Numbers work with /unmark (including players who left the party).",
+		["zh-cn"] = "列出已标记玩家。编号可配合 /unmark 取消（含已离队玩家）。",
+	},
+
 	-- 命令反馈
 	no_players = {
 		en = "No other players in the current party.",
@@ -43,8 +61,8 @@ return {
 		["zh-cn"] = "无效颜色。使用预设（红/橙/黄/绿/青/蓝/紫/粉/白/灰）或 hex（如 ff8800）。",
 	},
 	invalid_index = {
-		en = "Invalid number. Run /squad to refresh the party list first.",
-		["zh-cn"] = "无效编号。先运行 /squad 刷新队伍列表。",
+		en = "Invalid number. Run /marks to list marked players.",
+		["zh-cn"] = "无效编号。运行 /marks 查看已标记列表。",
 	},
 	marked = {
 		en = "marked. Use /unmark <number> to remove.",
@@ -55,8 +73,8 @@ return {
 		["zh-cn"] = "标记已取消。",
 	},
 	unmark_usage = {
-		en = "Usage: /unmark <number>  (run /squad to list party members)",
-		["zh-cn"] = "用法：/unmark <编号>（先用 /squad 查看队伍编号）",
+		en = "Usage: /unmark <number>  (number from /marks list)",
+		["zh-cn"] = "用法：/unmark <编号>（编号来自 /marks 列表）",
 	},
 	no_marks = {
 		en = "No players marked yet. Run /squad, then /mark <number> <color>.",
@@ -67,8 +85,12 @@ return {
 		["zh-cn"] = "已标记玩家：",
 	},
 	marks_usage_hint = {
-		en = "Run /squad to refresh the party list.",
-		["zh-cn"] = "运行 /squad 刷新队伍列表。",
+		en = "Numbers work with /unmark, including players who left the party",
+		["zh-cn"] = "编号可配合 /unmark 取消（含已离队玩家）",
+	},
+	mark_old_data_hint = {
+		en = " (old mark, re-mark to update real name)",
+		["zh-cn"] = "（旧标记，重新标记以更新真名）",
 	},
 	err_no_social = {
 		en = "Social service unavailable.",
