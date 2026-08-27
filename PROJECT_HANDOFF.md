@@ -1,7 +1,7 @@
 # color_mark · 项目交接摘要
 
 > **给新会话的快速上手文档**：读完这个 + 通用规范（`暗潮\01-开发规范\Darktide-Mod开发规范.md`）即可接手。
-> 最后更新：2026-08-19 14:15 | 当前版本：v1.0.0（✅ 已发 Release，待实测反馈）
+> 最后更新：2026-08-22 14:55 | 当前版本：**v1.0.1**（中文名误剥修复，已同步游戏待实测）
 
 ---
 
@@ -85,3 +85,27 @@ color_mark/
 - [ ] 游戏内实测：`/squad` 列人、`/mark` 变色、`/unmark`、重启持久化、与 AnonPlayers 同开
 - [ ] 头顶 nameplate 富文本验证（不行就 Plan B）
 - [ ] 实测通过 → 打 zip + Release
+
+## 八、2026-08-22 修复：中文名被 strip_rich_text 误剥（用户反馈）
+
+- **用户反馈**：colormark 不展示中文 ID 玩家的真名
+- **根因**：`strip_rich_text` 私有区正则 `[\xEE\x80\x80-\xEE\xBF\xBF\xEF\x80\x80-\xEF\xA3\xBF]` 在 Lua 中按**字节**解析，`\x80\x80-\xEE` 被解析成字节范围 0x80-0xEE → 最终集合覆盖 0x80-0xEF = **所有 UTF-8 多字节字符全被剥**。中文名 → mark.name 变空串 → real_color 走 `_cached_name` 兜底显示面具名
+- **修**：改精确 3 字节序列匹配 `\xEE[\x80-\xBF][\x80-\xBF]`（U+E000-EFFF）+ `\xEF[\x80-\xA3][\x80-\xBF]`（U+F000-F8FF，EF A4 起是 CJK 兼容表意不能剥）；`get_real_name` 返回前 strip 平台图标；/squad 自动升级逻辑放宽为「旧版 **或 name 为空/被误剥**」时补真名（老标记无需手动重标）
+- **验证**：`99-临时文件/verify_strip_regex.py`（字节级模拟 Lua matchbracketclass，复现旧正则剥光中文）；luaparser 语法 OK；已备份游戏 mods\color_mark → color_mark.bak_20260822_145315 并同步 3 个 lua
+- **待实测**：重启游戏后 /squad 中文名正常、/mark 中文名玩家、名牌/队伍面板显示中文真名；老标记 /squad 一次自动补名
+- **后续**：实测通过后打 zip（版本可 bump 1.0.2）
+
+## 七、2026-08-20 修复：real_color 解除匿名失败
+
+- **用户反馈**：标记玩家显示仍是匿名（???），real_color 模式没解除匿名
+- **根因分析**：
+  1. `_cached_name` / `Steam.user_name(peer_id)` 依赖 RemotePlayer origin 实现，不可靠（反编译字符串池确认 origin 有这段，但实际拿不到真名）
+  2. `/squad` 缓存的 mark.name 也被 AnonPlayers 匿名化（character_name 走 hook 链）→ 真名缓存本身就是面具名
+  3. hook 链顺序无问题：AnonPlayers 31 → color_mark 32，color_mark wrapper 链首截断标记玩家 ✓（DMF get_hook_chain 返回最新注册）
+  4. AnonPlayers 默认 anon_others=0（不匿名），用户手动开启后才会触发此问题
+- **修**：
+  - `get_player_name`：检测 `get_mod("AnonPlayers")` 的 `anon_others` 设置，匿名模式时直读 `player_info._account_name`（平台账号名，不走 hook 链，AnonPlayers 匿名不了）
+  - real_color 真名来源改为：`mark.name`（标记时缓存的真名）→ `_cached_name` → Steam（PlayerInfo 版本：mark.name → _account_name）
+- **同步**：已备份游戏 mods\color_mark → `color_mark.bak_20260820_111842`，覆盖同步 3 个 lua 到游戏
+- **待实测**：/squad 列表是否显示真名（匿名模式下列平台名）、real_color 头顶/聊天是否显示真名+颜色
+- **v1.0.1 已打包**（2026-08-20）：release\color_mark_1.0.1.zip + release_notes_1.0.1.md（与 1.0.0 结构一致）；未发布 GitHub（等用户同意）；color_mark.mod version → 1.0.1；开发文档.md 已加 4.5 节 real_color 直播安全风险说明
