@@ -1,7 +1,7 @@
 # color_mark · 项目交接摘要
 
 > **给新会话的快速上手文档**：读完这个 + 通用规范（`暗潮\01-开发规范\Darktide-Mod开发规范.md`）即可接手。
-> 最后更新：2026-08-22 14:55 | 当前版本：**v1.0.1**（中文名误剥修复，已同步游戏待实测）
+> 最后更新：2026-08-27 13:00 | 当前版本：**v1.0.1**（已发 Release，2026-08-27；中文名误剥修复，待游戏内实测）
 
 ---
 
@@ -11,8 +11,8 @@
 用聊天命令把队伍成员标记成彩色，被标记玩家在所有显示位置（头顶/聊天/结算/组队界面）以指定颜色呈现，一眼认出固定队友。
 
 - **位置**：`D:\DeepseekWorkspace\暗潮\04-Mods\color_mark\`
-- **仓库**：https://github.com/CiJhuiDi/darktide-color-mark（✅ 已发 Release v1.0.0，2026-08-19）
-- **状态**：实现完成，已发 Release，**待游戏内实测反馈**
+- **仓库**：https://github.com/CiJhuiDi/darktide-color-mark（✅ 已发 Release：v1.0.0 2026-08-19 / v1.0.1 2026-08-27）
+- **状态**：实现完成，已发 Release v1.0.0/v1.0.1，**待游戏内实测反馈**
 
 ## 二、命令
 
@@ -72,7 +72,7 @@ Managers.data_service.social:fetch_party_members()  -- Promise → {unique_id �
 
 ```
 color_mark/
-├── color_mark.mod              # version = "1.0.0"、author = "CiJhuiDi"
+├── color_mark.mod              # version = "1.0.1"、author = "CiJhuiDi"
 ├── 开发文档.md                 # 完整设计文档（选人演进/命令/风险清单）
 └── scripts\mods\color_mark\
     ├── color_mark.lua          # 主逻辑（squad 列表/命令/hook）
@@ -84,7 +84,7 @@ color_mark/
 
 - [ ] 游戏内实测：`/squad` 列人、`/mark` 变色、`/unmark`、重启持久化、与 AnonPlayers 同开
 - [ ] 头顶 nameplate 富文本验证（不行就 Plan B）
-- [ ] 实测通过 → 打 zip + Release
+- [x] 打 zip + Release（v1.0.1，2026-08-27 已发：https://github.com/CiJhuiDi/darktide-color-mark/releases/tag/v1.0.1）
 
 ## 八、2026-08-22 修复：中文名被 strip_rich_text 误剥（用户反馈）
 
@@ -93,7 +93,7 @@ color_mark/
 - **修**：改精确 3 字节序列匹配 `\xEE[\x80-\xBF][\x80-\xBF]`（U+E000-EFFF）+ `\xEF[\x80-\xA3][\x80-\xBF]`（U+F000-F8FF，EF A4 起是 CJK 兼容表意不能剥）；`get_real_name` 返回前 strip 平台图标；/squad 自动升级逻辑放宽为「旧版 **或 name 为空/被误剥**」时补真名（老标记无需手动重标）
 - **验证**：`99-临时文件/verify_strip_regex.py`（字节级模拟 Lua matchbracketclass，复现旧正则剥光中文）；luaparser 语法 OK；已备份游戏 mods\color_mark → color_mark.bak_20260822_145315 并同步 3 个 lua
 - **待实测**：重启游戏后 /squad 中文名正常、/mark 中文名玩家、名牌/队伍面板显示中文真名；老标记 /squad 一次自动补名
-- **后续**：实测通过后打 zip（版本可 bump 1.0.2）
+- **后续**：已打 zip 并发布 v1.0.1（2026-08-27）；待游戏内实测
 
 ## 七、2026-08-20 修复：real_color 解除匿名失败
 
@@ -108,4 +108,4 @@ color_mark/
   - real_color 真名来源改为：`mark.name`（标记时缓存的真名）→ `_cached_name` → Steam（PlayerInfo 版本：mark.name → _account_name）
 - **同步**：已备份游戏 mods\color_mark → `color_mark.bak_20260820_111842`，覆盖同步 3 个 lua 到游戏
 - **待实测**：/squad 列表是否显示真名（匿名模式下列平台名）、real_color 头顶/聊天是否显示真名+颜色
-- **v1.0.1 已打包**（2026-08-20）：release\color_mark_1.0.1.zip + release_notes_1.0.1.md（与 1.0.0 结构一致）；未发布 GitHub（等用户同意）；color_mark.mod version → 1.0.1；开发文档.md 已加 4.5 节 real_color 直播安全风险说明
+- **v1.0.1 已发布**（2026-08-27）：release\color_mark_1.0.1.zip（重打，含 08-22 修复）+ release_notes_1.0.1.md；GitHub Release v1.0.1 已发（2026-08-27）；color_mark.mod version → 1.0.1；开发文档.md 已加 4.5 节 real_color 直播安全风险说明
