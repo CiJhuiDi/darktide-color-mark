@@ -71,3 +71,7 @@ color_mark/
 ## 发布包
 
 - https://github.com/CiJhuiDi/darktide-color-mark/releases（下载 `color_mark_x.y.z.zip`，解压后为 `color_mark/` 目录，可直接放入 mods）
+
+## 许可 / License
+
+MIT License —— 详见 [LICENSE](LICENSE)。
