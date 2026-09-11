@@ -100,4 +100,8 @@ return {
 		en = "Failed to fetch party members.",
 		["zh-cn"] = "获取队伍成员失败。",
 	},
+	warn_load_order = {
+		en = "[ColorMark] Wrong load order: put color_mark AFTER AnonPlayers in mod_load_order.txt, otherwise AnonPlayers will re-anonymize the names this mod colors.",
+		["zh-cn"] = "[彩色标记] 加载顺序不对：请在 mod_load_order.txt 里把 color_mark 排在 AnonPlayers 之后，否则 AnonPlayers 会把本 mod 上色的名字再匿名一遍（表现为解除不了匿名）。",
+	},
 }

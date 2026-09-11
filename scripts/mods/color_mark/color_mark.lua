@@ -616,3 +616,44 @@ mod:hook_require("scripts/utilities/profile_utils", function (instance)
 		return func(profile, ...)
 	end)
 end)
+
+-- ##########################################################
+-- ################## 加载顺序自检 ##########################
+-- color_mark 必须排在 AnonPlayers **之后**：DMF 的 hook 链「后注册 = 外层」，
+-- 我们靠外层截断才能让被标记玩家的名字不被 AnonPlayers 再次匿名。顺序反了就会出现
+-- 「解除不了匿名」的假故障（本 mod 返回的彩色名被 AnonPlayers 又匿名一遍）。
+local anon_players_loaded_before_us = get_mod("AnonPlayers") ~= nil
+
+mod.on_all_mods_loaded = function (self)
+	local anon = get_mod("AnonPlayers")
+
+	if not anon then
+		return -- 没装 AnonPlayers，无需检查
+	end
+
+	local wrong_order = not anon_players_loaded_before_us
+
+	-- 双保险：能拿到 load_order_id 时再比一次（id 越大 = 加载位置越靠后）
+	local my_id = mod:get_internal_data("load_order_id")
+	local anon_id = anon:get_internal_data("load_order_id")
+
+	if type(my_id) == "number" and type(anon_id) == "number" and my_id < anon_id then
+		wrong_order = true
+	end
+
+	if wrong_order then
+		mod._order_warning = true
+		mod:warning("[color_mark] " .. mod:localize("warn_load_order"))
+		send_message(mod:localize("warn_load_order"))
+	else
+		mod:info("[color_mark] load order OK (AnonPlayers before color_mark)")
+	end
+end
+
+-- 进游戏状态时补一次提示（加载完成那一刻聊天栏可能还没就绪）
+mod.on_game_state_changed = function (self, status, state_name)
+	if mod._order_warning and status == "enter" then
+		mod._order_warning = nil
+		send_message(mod:localize("warn_load_order"))
+	end
+end

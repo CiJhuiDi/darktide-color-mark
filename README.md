@@ -24,6 +24,7 @@
 1. 把 `color_mark` 文件夹整个复制到游戏 mods 目录：
    `Steam\steamapps\common\Warhammer 40,000 DARKTIDE\mods\`
 2. 打开游戏根目录 `mod_load_order.txt`，添加一行 `color_mark`
+   - ⚠️ **若同时使用 AnonPlayers：`color_mark` 必须排在 `AnonPlayers` 之后**（越靠后加载 = hook 越外层）。顺序反了 AnonPlayers 会把本 mod 的彩色名再匿名一遍，表现为"解除不了匿名"（mod 会在启动时提示）
 3. 启动游戏 → ESC → **Mod Options → 彩色标记** 查看/调整设置
 
 ## 使用
