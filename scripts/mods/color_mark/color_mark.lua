@@ -149,6 +149,143 @@ local function strip_rich_text(text)
 	return cleaned
 end
 
+-- ##########################################################
+-- ################## 自己的显示名（别名） ##################
+-- 用自定义别名 + 颜色替换「自己」的名字**显示**（仅本机可见，不影响队友看到的名字）。
+-- 覆盖位置与 AnonPlayers 对「自己」的处理一致：
+--   PlayerInfo.character_name / user_display_name（社交 / 聊天 / 结算）
+--   HumanPlayer.name（左下角 HUD）
+--   PresenceEntryMyself / PresenceEntryImmaterium（邀请 / 组队 / 衷星号面板）
+--   profile_utils.character_name（预任务大厅 / 选人）
+
+-- 取对象的 profile：优先 :profile()，回退字段 _profile（HumanPlayer 用后者）
+local function profile_of(obj)
+	if not obj then
+		return nil
+	end
+
+	local ok, profile = pcall(function ()
+		return obj.profile and obj:profile() or nil
+	end)
+
+	if ok and profile then
+		return profile
+	end
+
+	return obj._profile
+end
+
+-- 判定「是不是自己」：拿对象 profile 与本机玩家 profile 比同一引用
+local function is_my_profile(profile)
+	if not profile then
+		return false
+	end
+
+	local ok, mine = pcall(function ()
+		local player = Managers.player and Managers.player:local_player(1)
+
+		return player and player._profile
+	end)
+
+	return ok and mine ~= nil and profile == mine
+end
+
+-- 是不是本机的 HumanPlayer 实例
+local function is_my_player(obj)
+	if not obj then
+		return false
+	end
+
+	local ok, mine = pcall(function ()
+		return Managers.player and Managers.player:local_player(1)
+	end)
+
+	return ok and mine ~= nil and obj == mine
+end
+
+-- 颜色容错：DMF 颜色控件的值是 **{A, R, G, B}** 四个元素（见 color_widget_passes 的 CHANNELS）；
+-- 也容忍只给 {r,g,b}（3 元素）以及 Vector4（userdata）。
+local function normalize_color(value)
+	if not value then
+		return nil
+	end
+
+	if type(value) == "userdata" then
+		local ok, elements = pcall(function ()
+			return { Quaternion.to_elements(value) }
+		end)
+
+		if ok and type(elements) == "table" and type(elements[1]) == "number" then
+			return { elements[1], elements[2], elements[3] }
+		end
+
+		return nil
+	end
+
+	if type(value) ~= "table" then
+		return nil
+	end
+
+	-- Vector4 转换路径会变成 { {r,g,b,a} }，脱一层
+	if type(value[1]) == "table" then
+		return normalize_color(value[1])
+	end
+
+	-- 主情况：{A, R, G, B}
+	local r, g, b = value[2], value[3], value[4]
+
+	if type(r) == "number" and type(g) == "number" and type(b) == "number" then
+		return { r, g, b }
+	end
+
+	-- 兼容：{R, G, B}
+	r, g, b = value[1], value[2], value[3]
+
+	if type(r) == "number" and type(g) == "number" and type(b) == "number" then
+		return { r, g, b }
+	end
+
+	return nil
+end
+
+-- 别名文本（未启用 / 为空为空串 → nil）
+local function self_alias_text()
+	if mod:get("self_alias_enable") ~= true then
+		return nil
+	end
+
+	local text = mod:get("self_alias")
+
+	if type(text) ~= "string" then
+		return nil
+	end
+
+	text = strip_rich_text(text)
+
+	if not text or text == "" then
+		return nil
+	end
+
+	return text
+end
+
+-- 带颜色的别名（未启用 → nil；无颜色时退化为纯文本）
+local function self_alias_display()
+	local text = self_alias_text()
+
+	if not text then
+		return nil
+	end
+
+	local color = normalize_color(mod:get("self_alias_color"))
+
+	if not color then
+		return text
+	end
+
+	return color_string(color, text)
+end
+
 -- 标记数据版本：nil/1 = 旧版（name 可能被匿名污染/富文本），2 = 新版（真名）
 local MARK_VERSION = 2
 
@@ -178,6 +315,36 @@ local function migrate_marks()
 end
 
 migrate_marks()
+
+-- ##########################################################
+-- ################## 自愈：颜色设置存档 ####################
+-- DMF 颜色控件的值必须是 **{A, R, G, B} 四个数字**（见 dmf/.../color/color_widget_passes.lua 的 CHANNELS）。
+-- 而 color_widget.lua 的 current_color() = **存档值 or 默认值** —— 存档优先：
+-- 一旦存档里存过 3 元素的值（v1.0.3 首个构建的默认值就是 3 元素），
+-- 光改默认值没用，打开设置面板时 preview_color[4] = nil → string.format("%.0f", nil) 抛错 → **游戏崩溃**。
+-- 所以在 mod 加载时（早于设置面板构建）检查并就地修正，玩家不用手删配置文件。
+local function heal_self_alias_color()
+	local stored = mod:get("self_alias_color")
+
+	if type(stored) == "table" and type(stored[1]) == "table" then
+		stored = stored[1] -- 被包了一层（Vector4 转换路径）
+	end
+
+	local valid = type(stored) == "table"
+		and type(stored[1]) == "number"
+		and type(stored[2]) == "number"
+		and type(stored[3]) == "number"
+		and type(stored[4]) == "number"
+
+	if valid then
+		return
+	end
+
+	mod:set("self_alias_color", { 255, 90, 150, 255 })
+	mod:warning("[color_mark] self_alias_color 存档值不合法，已重置为 {255,90,150,255}（防设置面板崩溃）")
+end
+
+heal_self_alias_color()
 
 -- 未标记玩家显示名：走 character_name（AnonPlayers 匿名成掩码），直播安全
 local function get_masked_name(player_info)
@@ -522,6 +689,15 @@ end)
 -- PlayerInfo:character_name() —— 社交/聊天/结算
 -- 注意：AnonPlayers 对 user_display_name 用了 hook_origin，此处一律用普通 hook（链尾是 origin）
 mod:hook("PlayerInfo", "character_name", function (func, self, ...)
+	-- 自己：用自定义别名（带颜色）替换显示；不调 func 即绕过 AnonPlayers 的二次匿名
+	if is_my_profile(profile_of(self)) then
+		local alias = self_alias_display()
+
+		if alias then
+			return alias
+		end
+	end
+
 	local account_id = self.account_id and self:account_id()
 
 	if account_id and mod.marks[account_id] then
@@ -550,6 +726,15 @@ mod:hook("PlayerInfo", "user_display_name", function (func, self, ...)
 		return func(self, ...)
 	end
 
+	-- 自己：账号名位置也用别名替换
+	if is_my_profile(profile_of(self)) then
+		local alias = self_alias_display()
+
+		if alias then
+			return alias
+		end
+	end
+
 	local account_id = self.account_id and self:account_id()
 
 	if account_id and mod.marks[account_id] then
@@ -574,6 +759,19 @@ end)
 -- 注意：presence 的 account_id 是平台用户 ID，可能与标记 key 不同体系；匹配不到则放行（不崩）
 -- 2026-08-22 修复：旧版直接 color_string(func 结果) = 彩色掩码（AnonPlayers 已匿名），补 real_color 真名替换
 mod:hook("PresenceEntryImmaterium", "character_name", function (func, self, ...)
+	-- 自己（队列表里自己那一行）：用别名替换
+	local ok_my_profile, my_profile = pcall(function ()
+		return self:character_profile()
+	end)
+
+	if ok_my_profile and is_my_profile(my_profile) then
+		local alias = self_alias_display()
+
+		if alias then
+			return alias
+		end
+	end
+
 	local account_id = self.account_id and self:account_id()
 
 	if account_id and account_id ~= "" and mod.marks[account_id] then
@@ -607,6 +805,15 @@ end)
 -- 只有 profile，用 character_id -> account_id 映射表反查（/squad 时构建）
 mod:hook_require("scripts/utilities/profile_utils", function (instance)
 	mod:hook(instance, "character_name", function (func, profile, ...)
+		-- 自己（预任务大厅 / 选人界面）
+		if is_my_profile(profile) then
+			local alias = self_alias_display()
+
+			if alias then
+				return alias
+			end
+		end
+
 		local account_id = profile and profile.character_id and mod.character_account_map[profile.character_id]
 
 		if account_id and mod.marks[account_id] then
@@ -615,6 +822,31 @@ mod:hook_require("scripts/utilities/profile_utils", function (instance)
 
 		return func(profile, ...)
 	end)
+end)
+
+-- HumanPlayer:name() —— 左下角 HUD 自己的名字
+-- 注意：必须用 mod:hook（不是 dmf:hook），与 AnonPlayers 共存时靠“后加载 = 外层”截断
+mod:hook("HumanPlayer", "name", function (func, self, ...)
+	if is_my_player(self) or is_my_profile(profile_of(self)) then
+		local alias = self_alias_display()
+
+		if alias then
+			return alias
+		end
+	end
+
+	return func(self, ...)
+end)
+
+-- PresenceEntryMyself:character_name() —— 邀请 / 组队界面里“自己”那一行（该对象就是自己，无需判定）
+mod:hook("PresenceEntryMyself", "character_name", function (func, self, ...)
+	local alias = self_alias_display()
+
+	if alias then
+		return alias
+	end
+
+	return func(self, ...)
 end)
 
 -- ##########################################################

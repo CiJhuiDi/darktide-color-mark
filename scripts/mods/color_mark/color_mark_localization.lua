@@ -29,6 +29,44 @@ return {
 		["zh-cn"] = "真名 + 颜色",
 	},
 
+	-- 设置项：自己的名字
+	self_name_group = {
+		en = "My Own Name",
+		["zh-cn"] = "我自己的名字",
+	},
+	self_name_group_description = {
+		en = "Replace YOUR OWN displayed name with a custom alias (and color) on this client only. Other players still see your real name.",
+		["zh-cn"] = "用自定义别名（可上色）替换**你自己**在本机的显示名。仅本机可见 —— 队友看到的仍是你原本的名字。",
+	},
+	self_alias_enable = {
+		en = "Use a custom name for myself",
+		["zh-cn"] = "用自定义名字显示自己",
+	},
+	self_alias_enable_description = {
+		en = "When on, your own name is shown as the alias below (in the chosen color) instead of your real name.",
+		["zh-cn"] = "开启后，你自己的名字将显示为下面填的别名（并用选定颜色），而不是真名。",
+	},
+	self_alias = {
+		en = "My displayed name",
+		["zh-cn"] = "我的显示名",
+	},
+	self_alias_description = {
+		en = "The name shown in your place (HUD / chat / end-of-match / party panels / lobby). Leave empty to keep your real name.",
+		["zh-cn"] = "替换你名字的文字（左下角 HUD / 聊天 / 结算 / 组队面板 / 大厅）。留空则仍显示真名。",
+	},
+	self_alias_placeholder = {
+		en = "e.g. Me / 主播",
+		["zh-cn"] = "例如：我 / 主播",
+	},
+	self_alias_color = {
+		en = "Color of my displayed name",
+		["zh-cn"] = "我的显示名颜色",
+	},
+	self_alias_color_description = {
+		en = "Color used for the alias above.",
+		["zh-cn"] = "上面那个别名使用的颜色。",
+	},
+
 	-- 命令 description（DMF 候选列表 / tab_complete 补全时显示）
 	command_squad_description = {
 		en = "List party members with numbers. Numbers are used by /mark.",
