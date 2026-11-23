@@ -9,6 +9,6 @@ return {
 		})
 	end,
 	packages = {},
-	version = "1.0.3",
+	version = "1.0.5",
 	author = "CiJhuiDi",
 }

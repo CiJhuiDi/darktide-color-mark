@@ -1,0 +1,21 @@
+{
+  "name": "ColorMark",
+  "author": "CiJhuiDi",
+  "version": "1.0.5",
+  "description": "Mark party members with chat commands and show their names in custom colors; also obfuscates the level / prestige / Havoc rank displayed by the true_level mod.",
+  "source": "https://github.com/CiJhuiDi/darktide-color-mark",
+  "dependencies": {
+    "required": [],
+    "self_after": [
+      "AnonPlayers",
+      "true_level"
+    ],
+    "self_before": []
+  },
+  "localization": {
+    "zh-cn": {
+      "name": "彩色标记",
+      "description": "用聊天命令把队友标成彩色，一眼认出熟人；并可混淆 true_level 显示的等级 / 威望 / 浩劫层数。"
+    }
+  }
+}

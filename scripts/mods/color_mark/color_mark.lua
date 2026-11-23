@@ -85,6 +85,22 @@ local function build_character_map()
 end
 
 -- ##########################################################
+-- ################## 调试探针 ##############################
+-- [cm][...] 探针全部在名字 hook 的热路径上：UI 每取一次名字就命中一次（实测 ≈95 次/秒），
+-- 每条都要 string.format + 写日志文件。2026-10-09 实测：开启状态下 33 分钟写 19.2 万行 / 29 MB
+-- （占该次日志 97.8%），长局 3 小时可到 200 MB+。故**默认关闭**，需要排查时才开。
+--
+-- 打开方式（二选一）：
+--   1) 聊天 /markdebug on|off —— 仅本次会话的临时覆盖，不写配置（排查时推荐，随开随关）
+--   2) Mod Options → 彩色标记 → 调试日志 —— 持久化到 user_settings.config
+-- 排查 AnonPlayers / anon_names 的匿名泄漏时打开它：`raw=` 字段是判断真名还是化名的最直接证据。
+local function cm_log(fmt, ...)
+	if mod._debug_override or mod:get("debug_log") then
+		mod:info(fmt, ...)
+	end
+end
+
+-- ##########################################################
 -- ################## 工具函数 ##############################
 
 local function send_message(message)
@@ -92,6 +108,9 @@ local function send_message(message)
 		Managers.event:trigger("system_chat_message", tostring(message), "SYSTEM")
 	end
 end
+
+-- 供 color_mark_fake_progress 等子模块发聊天提示
+mod.send_chat = send_message
 
 local function color_string(color, name)
 	return string.format("{#color(%d,%d,%d)}%s{#reset()}", color[1], color[2], color[3], tostring(name))
@@ -175,19 +194,37 @@ local function profile_of(obj)
 	return obj._profile
 end
 
+-- ⚠️ 安全取本机玩家：**不要直接调 Managers.player:local_player(1)**
+-- 玩家管理还没初始化时（启动早期 / 还没进 hub），local_player 内部会走到未初始化的
+-- peer_id（C 函数）上 → Access violation 直接崩游戏，而且是 native crash，**pcall 挡不住**
+-- （2026-10-11 v1.0.5 开发期实测崩过一次：color_mark_fake_progress 里查"我是谁"踩的）。
+-- 所以先确认"至少有一个玩家"，再调用。
+local function safe_local_player()
+	local pm = Managers.player
+
+	if not pm then
+		return nil
+	end
+
+	if type(pm._num_players) == "number" and pm._num_players <= 0 then
+		return nil
+	end
+
+	local ok, player = pcall(pm.local_player, pm, 1)
+
+	return ok and player or nil
+end
+
 -- 判定「是不是自己」：拿对象 profile 与本机玩家 profile 比同一引用
 local function is_my_profile(profile)
 	if not profile then
 		return false
 	end
 
-	local ok, mine = pcall(function ()
-		local player = Managers.player and Managers.player:local_player(1)
+	local player = safe_local_player()
+	local mine = player and player._profile
 
-		return player and player._profile
-	end)
-
-	return ok and mine ~= nil and profile == mine
+	return mine ~= nil and profile == mine
 end
 
 -- 是不是本机的 HumanPlayer 实例
@@ -196,11 +233,9 @@ local function is_my_player(obj)
 		return false
 	end
 
-	local ok, mine = pcall(function ()
-		return Managers.player and Managers.player:local_player(1)
-	end)
+	local mine = safe_local_player()
 
-	return ok and mine ~= nil and obj == mine
+	return mine ~= nil and obj == mine
 end
 
 -- 颜色容错：DMF 颜色控件的值是 **{A, R, G, B}** 四个元素（见 color_widget_passes 的 CHANNELS）；
@@ -368,21 +403,74 @@ end
 -- 注意：调用 user_display_name 时用标志位绕开 color_mark 自己的 hook（否则返回被包装的彩色富文本）
 mod._getting_real_name = false
 
+-- 真名来源（2026-10-09 改）：**不能再依赖 user_display_name()**
+-- 那个函数被 AnonPlayers 用 hook_origin 整个替换，内部又调 mod.anonymize，
+-- 而 anon_names 会把它的结果换成化名 —— 于是 mark.name 缓存到的是化名，
+-- real_color 自然解除不了匿名。
+-- 改为直接向 presence / platform_social 要平台真名，绕开所有 mod 对名字函数的 hook。
+-- 逻辑复刻自 AnonPlayers 自己的 hook_origin：presence → platform_social → _account_name。
+local function raw_account_name(player_info)
+	local name
+
+	local ok_presence, presence_name = pcall(function ()
+		local presence = player_info:_get_presence()
+		return presence and presence:platform_persona_name_or_account_name()
+	end)
+
+	if ok_presence and type(presence_name) == "string" and presence_name ~= "" then
+		name = presence_name
+	end
+
+	if not name then
+		local ok_social, social_name = pcall(function ()
+			local platform_social = player_info._platform_social
+			return platform_social and platform_social:name()
+		end)
+
+		if ok_social and type(social_name) == "string" and social_name ~= "" then
+			name = social_name
+		end
+	end
+
+	if not name then
+		local account_name = player_info._account_name
+
+		if type(account_name) == "string" and account_name ~= "" then
+			name = account_name
+		end
+	end
+
+	cm_log("[cm][squad] raw_account_name=%s", tostring(name))
+
+	return name
+end
+
 local function get_real_name(player_info)
 	if not player_info then
 		return "?"
 	end
 
+	-- 1) 首选：绕开全部 hook 的平台真名
+	local real = raw_account_name(player_info)
+
+	if real then
+		local cleaned = strip_rich_text(real)
+
+		if cleaned and cleaned ~= "" and cleaned ~= "N/A" then
+			return cleaned
+		end
+	end
+
+	-- 2) 兜底：user_display_name（可能已被匿名）+ 角色名
 	mod._getting_real_name = true
 	local ok_acc, acc_name = pcall(function ()
 		return player_info:user_display_name()
 	end)
 	mod._getting_real_name = false
 
-	mod:info("[cm][squad] user_display_name ok=%s val=%s", tostring(ok_acc), tostring(acc_name))
+	cm_log("[cm][squad] fallback user_display_name ok=%s val=%s", tostring(ok_acc), tostring(acc_name))
 
 	if ok_acc and acc_name and acc_name ~= "" and acc_name ~= "N/A" then
-		-- 清洗平台图标等私有区字符（不剥中文）
 		local cleaned = strip_rich_text(acc_name)
 
 		if cleaned and cleaned ~= "" then
@@ -394,7 +482,7 @@ local function get_real_name(player_info)
 		return player_info:character_name()
 	end)
 
-	mod:info("[cm][squad] char_name ok=%s val=%s", tostring(ok), tostring(name))
+	cm_log("[cm][squad] char_name ok=%s val=%s", tostring(ok), tostring(name))
 
 	if ok and name and name ~= "" then
 		return name
@@ -433,7 +521,7 @@ local function refresh_squad()
 		if type(members) == "table" then
 			-- 自己（不可标记）
 			local local_account_id
-			local local_player = Managers.player and Managers.player:local_player(1)
+			local local_player = safe_local_player()
 
 			if local_player then
 				local ok_local, id = pcall(function ()
@@ -613,6 +701,40 @@ mod:command("marks", mod:localize("command_marks_description"), function ()
 	send_message(message .. "  (" .. mod:localize("marks_usage_hint") .. ")")
 end)
 
+-- /markdebug on|off —— 临时开关 [cm] 探针日志（仅本次会话，不写配置；不改设置项）
+mod:command("markdebug", mod:localize("command_markdebug_description"), function (...)
+	local arg = string.lower(table.concat({ ... }, ""))
+
+	if arg == "on" then
+		mod._debug_override = true
+		send_message(mod:localize("debug_log_on"))
+	elseif arg == "off" then
+		mod._debug_override = nil
+
+		if mod:get("debug_log") then
+			-- 设置项仍开着：会话覆盖已清，但日志还在写，得去 Mod Options 取消勾选
+			send_message(mod:localize("debug_log_off_setting_on"))
+		else
+			send_message(mod:localize("debug_log_off"))
+		end
+	else
+		local state
+
+		if mod._debug_override then
+			state = mod:localize("debug_log_state_on")
+		elseif mod:get("debug_log") then
+			state = mod:localize("debug_log_state_setting_on")
+		else
+			state = mod:localize("debug_log_state_off")
+		end
+
+		-- ⚠️ 不能写 string.format(mod:localize("…"), …)：DMF 的 localize 内部**已经**做了一次
+		-- string.format（safe_string_format），文本里留 %s/%d 而没传参会直接报错
+		-- （错误还会被 DMF 的 safe_call 吞掉，表现为"命令没反应"）。故一律用 {} 占位符 + gsub。
+		send_message((mod:localize("debug_log_status"):gsub("{state}", state)))
+	end
+end)
+
 -- ##########################################################
 -- ################## 名字 hook #############################
 
@@ -626,7 +748,7 @@ mod:hook("RemotePlayer", "name", function (func, self, ...)
 		local name = func(self, ...)
 		local mark = mod.marks[account_id]
 
-		mod:info("[cm][RP:name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
+		cm_log("[cm][RP:name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
 
 		if mod:get("mark_display_mode") == "real_color" then
 			if mark.version == MARK_VERSION and mark.name and mark.name ~= "" then
@@ -656,7 +778,7 @@ end)
 mod:hook("RemotePlayer", "character_name", function (func, self, ...)
 	local account_id = self.account_id and self:account_id()
 
-	mod:info("[cm][RP:char_name] acc=%s marked=%s mode=%s", tostring(account_id), tostring(account_id ~= nil and mod.marks[account_id] ~= nil), tostring(mod:get("mark_display_mode")))
+	cm_log("[cm][RP:char_name] acc=%s marked=%s mode=%s", tostring(account_id), tostring(account_id ~= nil and mod.marks[account_id] ~= nil), tostring(mod:get("mark_display_mode")))
 
 	if account_id and mod.marks[account_id] then
 		local name = func(self, ...)
@@ -704,7 +826,7 @@ mod:hook("PlayerInfo", "character_name", function (func, self, ...)
 		local name = func(self, ...)
 		local mark = mod.marks[account_id]
 
-		mod:info("[cm][PI:char_name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
+		cm_log("[cm][PI:char_name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
 
 		if mod:get("mark_display_mode") == "real_color" then
 			if mark.version == MARK_VERSION and mark.name and mark.name ~= "" then
@@ -778,7 +900,7 @@ mod:hook("PresenceEntryImmaterium", "character_name", function (func, self, ...)
 		local mark = mod.marks[account_id]
 		local name = func(self, ...)
 
-		mod:info("[cm][PEI:char_name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
+		cm_log("[cm][PEI:char_name] hit acc=%s mode=%s mark_v=%s mark_name=%s raw=%s", tostring(account_id), tostring(mod:get("mark_display_mode")), tostring(mark.version), tostring(mark.name), tostring(name))
 
 		if mod:get("mark_display_mode") == "real_color" then
 			if mark.version == MARK_VERSION and mark.name and mark.name ~= "" then
@@ -857,6 +979,11 @@ end)
 local anon_players_loaded_before_us = get_mod("AnonPlayers") ~= nil
 
 mod.on_all_mods_loaded = function (self)
+	-- true_level 若加载得比我们晚，在这里补装混淆 hook（它先加载时，模块加载阶段就装好了）
+	if mod.install_fake_progress then
+		mod.install_fake_progress()
+	end
+
 	local anon = get_mod("AnonPlayers")
 
 	if not anon then
@@ -889,3 +1016,6 @@ mod.on_game_state_changed = function (self, status, state_name)
 		send_message(mod:localize("warn_load_order"))
 	end
 end
+
+-- ################## 混淆进度显示（true_level 的等级/威望/浩劫层数）##################
+mod:io_dofile("color_mark/scripts/mods/color_mark/color_mark_fake_progress")
